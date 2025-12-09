@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" 
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/base}">
+<head>
+    <title>Statistik Oleh-Oleh</title>
+    <style>
+        .stat-card {
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            border: none;
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15) !important;
+        }
+        .chart-card {
+            border: none;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+        }
+        .chart-card:hover {
+            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+        }
+        .card-header {
+            border: none;
+            padding: 1.25rem 1.5rem;
+            font-weight: 600;
+        }
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            line-height: 1;
+            margin: 0.5rem 0;
+        }
+        .stat-icon {
+            font-size: 2rem;
+            opacity: 0.8;
+        }
+        .breadcrumb {
+            background: transparent;
+            padding: 0;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+            padding: 1rem;
+        }
+    </style>
+</head>
+<body>
+
+<div layout:fragment="content">
+    
+    <!-- Header dengan Gradient Background -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="p-4 rounded-3" style="background: linear-gradient(135deg, #A78BCC 0%, #C99FD1 100%);">
+                <h1 class="text-white mb-2">
+                    <i class="bi bi-bar-chart-line-fill"></i> Statistik Koleksi Oleh-Oleh
+                </h1>
+                <p class="text-white-50 mb-0">Analisis dan visualisasi data oleh-oleh khas daerah Indonesia</p>
+            </div>
+            <nav aria-label="breadcrumb" class="mt-3">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="/" class="text-decoration-none"><i class="bi bi-house-fill"></i> Home</a></li>
+                    <li class="breadcrumb-item active">Statistik</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <!-- Summary Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card text-white shadow-sm" style="background: linear-gradient(135deg, #B19FD9 0%, #C9B3E0 100%);">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-white-50 mb-2 text-uppercase" style="font-size: 0.75rem; font-weight: 600;">Total Koleksi</h6>
+                            <div class="stat-number" th:text="${totalOlehOleh} ?: 0">0</div>
+                            <small class="text-white-50"><i class="bi bi-gift-fill"></i> Oleh-Oleh</small>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="bi bi-box-seam"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card text-white shadow-sm" style="background: linear-gradient(135deg, #DEACD5 0%, #E8BFDD 100%);">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-white-50 mb-2 text-uppercase" style="font-size: 0.75rem; font-weight: 600;">Total Provinsi</h6>
+                            <div class="stat-number" id="totalProvinsi">0</div>
+                            <small class="text-white-50"><i class="bi bi-geo-alt-fill"></i> Provinsi</small>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="bi bi-map"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card text-white shadow-sm" style="background: linear-gradient(135deg, #A78BCC 0%, #B89BD4 100%);">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-white-50 mb-2 text-uppercase" style="font-size: 0.75rem; font-weight: 600;">Total Kategori</h6>
+                            <div class="stat-number" id="totalKategori">0</div>
+                            <small class="text-white-50"><i class="bi bi-tag-fill"></i> Kategori</small>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="bi bi-tags"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stat-card text-white shadow-sm" style="background: linear-gradient(135deg, #C9A0D8 0%, #D9B3E3 100%);">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-white-50 mb-2 text-uppercase" style="font-size: 0.75rem; font-weight: 600;">Rating Tertinggi</h6>
+                            <div class="stat-number" id="ratingTertinggi">-</div>
+                            <small class="text-white-50"><i class="bi bi-star-fill"></i> Bintang</small>
+                        </div>
+                        <div class="stat-icon">
+                            <i class="bi bi-award"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart Row 1: Kategori & Provinsi -->
+    <div class="row mb-4">
+        <!-- Pie Chart Kategori -->
+        <div class="col-lg-6 mb-4">
+            <div class="card chart-card">
+                <div class="card-header" style="background: linear-gradient(135deg, #B19FD9 0%, #C9B3E0 100%); color: white;">
+                    <h5 class="mb-0">
+                        <i class="bi bi-pie-chart-fill"></i> Distribusi Kategori
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="kategoriChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bar Chart Provinsi -->
+        <div class="col-lg-6 mb-4">
+            <div class="card chart-card">
+                <div class="card-header" style="background: linear-gradient(135deg, #DEACD5 0%, #E8BFDD 100%); color: white;">
+                    <h5 class="mb-0">
+                        <i class="bi bi-bar-chart-fill"></i> Oleh-Oleh per Provinsi
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="provinsiChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart Row 2: Harga & Rating -->
+    <div class="row mb-4">
+        <!-- Bar Chart Harga -->
+        <div class="col-lg-6 mb-4">
+            <div class="card chart-card">
+                <div class="card-header" style="background: linear-gradient(135deg, #A78BCC 0%, #B89BD4 100%); color: white;">
+                    <h5 class="mb-0">
+                        <i class="bi bi-cash-stack"></i> Harga Rata-rata per Kategori
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="hargaChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Doughnut Chart Rating -->
+        <div class="col-lg-6 mb-4">
+            <div class="card chart-card">
+                <div class="card-header" style="background: linear-gradient(135deg, #C9A0D8 0%, #D9B3E3 100%); color: white;">
+                    <h5 class="mb-0">
+                        <i class="bi bi-star-fill"></i> Distribusi Rating
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="ratingChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Back Button -->
+    <div class="row">
+        <div class="col text-center mb-4">
+            <a href="/" class="btn btn-outline-primary btn-lg px-5">
+                <i class="bi bi-arrow-left-circle"></i> Kembali ke Home
+            </a>
+        </div>
+    </div>
+
+</div>
+
+<!-- Scripts untuk Chart -->
+<div layout:fragment="scripts">
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        // Data dari server
+        var chartKategoriData = /*[[${chartKategori}]]*/ [];
+        var chartProvinsiData = /*[[${chartProvinsi}]]*/ [];
+        var chartHargaData = /*[[${chartHarga}]]*/ [];
+        var chartRatingData = /*[[${chartRating}]]*/ [];
+
+        // ========== CHART 1: KATEGORI (PIE CHART) ==========
+        var kategoriLabels = [];
+        var kategoriCounts = [];
+        var totalKategori = 0;
+
+        if (chartKategoriData && chartKategoriData.length > 0) {
+            chartKategoriData.forEach(function(item) {
+                kategoriLabels.push(item[0]);
+                kategoriCounts.push(item[1]);
+            });
+            totalKategori = kategoriLabels.length;
+        }
+
+        var ctxKategori = document.getElementById('kategoriChart').getContext('2d');
+        var kategoriChart = new Chart(ctxKategori, {
+            type: 'doughnut',
+            data: {
+                labels: kategoriLabels,
+                datasets: [{
+                    label: 'Jumlah',
+                    data: kategoriCounts,
+                    backgroundColor: [
+                        '#B19FD9',
+                        '#DEACD5',
+                        '#A78BCC',
+                        '#C9A0D8',
+                        '#C99FD1',
+                        '#E8BFDD'
+                    ],
+                    borderWidth: 3,
+                    borderColor: '#fff',
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            font: {
+                                size: 12,
+                                weight: '600'
+                            }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.8)',
+                        padding: 12,
+                        titleFont: {
+                            size: 14,
+                            weight: 'bold'
+                        },
+                        bodyFont: {
+                            size: 13
+                        },
+                        callbacks: {
+                            label: function(context) {
+                                var label = context.label || '';
+                                var value = context.parsed || 0;
+                                var total = context.dataset.data.reduce(function(a, b) { return a + b; }, 0);
+                                var percentage = ((value / total) * 100).toFixed(1);
+                                return label + ': ' + value + ' (' + percentage + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // ========== CHART 2: PROVINSI (BAR CHART) ==========
+        var provinsiLabels = [];
+        var provinsiCounts = [];
+        var totalProvinsi = 0;
+
+        if (chartProvinsiData && chartProvinsiData.length > 0) {
+            chartProvinsiData.forEach(function(item) {
+                provinsiLabels.push(item[0]);
+                provinsiCounts.push(item[1]);
+            });
+            totalProvinsi = provinsiLabels.length;
+        }
+
+        var ctxProvinsi = document.getElementById('provinsiChart').getContext('2d');
+        var provinsiChart = new Chart(ctxProvinsi, {
+            type: 'bar',
+            data: {
+                labels: provinsiLabels,
+                datasets: [{
+                    label: 'Jumlah Oleh-Oleh',
+                    data: provinsiCounts,
+                    backgroundColor: 'rgba(222, 172, 213, 0.8)',
+                    borderColor: '#DEACD5',
+                    borderWidth: 2,
+                    borderRadius: 8,
+                    barThickness: 40
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            stepSize: 1,
+                            font: {
+                                size: 12
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0,0,0,0.05)'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            font: {
+                                size: 11
+                            }
+                        },
+                        grid: {
+                            display: false
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.8)',
+                        padding: 12,
+                        titleFont: {
+                            size: 14,
+                            weight: 'bold'
+                        }
+                    }
+                }
+            }
+        });
+
+        // ========== CHART 3: HARGA (BAR CHART) ==========
+        var hargaLabels = [];
+        var hargaAvgs = [];
+
+        if (chartHargaData && chartHargaData.length > 0) {
+            chartHargaData.forEach(function(item) {
+                hargaLabels.push(item[0]);
+                hargaAvgs.push(Math.round(item[1]));
+            });
+        }
+
+        var ctxHarga = document.getElementById('hargaChart').getContext('2d');
+        var hargaChart = new Chart(ctxHarga, {
+            type: 'bar',
+            data: {
+                labels: hargaLabels,
+                datasets: [{
+                    label: 'Harga Rata-rata (Rp)',
+                    data: hargaAvgs,
+                    backgroundColor: 'rgba(167, 139, 204, 0.8)',
+                    borderColor: '#A78BCC',
+                    borderWidth: 2,
+                    borderRadius: 8,
+                    barThickness: 40
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return 'Rp ' + value.toLocaleString('id-ID');
+                            },
+                            font: {
+                                size: 12
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0,0,0,0.05)'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            font: {
+                                size: 12
+                            }
+                        },
+                        grid: {
+                            display: false
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.8)',
+                        padding: 12,
+                        titleFont: {
+                            size: 14,
+                            weight: 'bold'
+                        },
+                        callbacks: {
+                            label: function(context) {
+                                return 'Rp ' + context.parsed.y.toLocaleString('id-ID');
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        // ========== CHART 4: RATING (DOUGHNUT CHART) ==========
+        var ratingLabels = [];
+        var ratingCounts = [];
+        var ratingTertinggi = 0;
+
+        if (chartRatingData && chartRatingData.length > 0) {
+            chartRatingData.forEach(function(item) {
+                ratingLabels.push(item[0] + ' ⭐');
+                ratingCounts.push(item[1]);
+                if (item[0] > ratingTertinggi) {
+                    ratingTertinggi = item[0];
+                }
+            });
+        }
+
+        var ctxRating = document.getElementById('ratingChart').getContext('2d');
+        var ratingChart = new Chart(ctxRating, {
+            type: 'polarArea',
+            data: {
+                labels: ratingLabels,
+                datasets: [{
+                    label: 'Jumlah',
+                    data: ratingCounts,
+                    backgroundColor: [
+                        'rgba(220, 53, 69, 0.7)',
+                        'rgba(253, 126, 20, 0.7)',
+                        'rgba(255, 193, 7, 0.7)',
+                        'rgba(40, 167, 69, 0.7)',
+                        'rgba(23, 162, 184, 0.7)'
+                    ],
+                    borderColor: [
+                        '#dc3545',
+                        '#fd7e14',
+                        '#ffc107',
+                        '#28a745',
+                        '#17a2b8'
+                    ],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 15,
+                            font: {
+                                size: 12,
+                                weight: '600'
+                            }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0,0,0,0.8)',
+                        padding: 12,
+                        titleFont: {
+                            size: 14,
+                            weight: 'bold'
+                        }
+                    }
+                },
+                scales: {
+                    r: {
+                        ticks: {
+                            stepSize: 1,
+                            font: {
+                                size: 11
+                            }
+                        },
+                        grid: {
+                            color: 'rgba(0,0,0,0.1)'
+                        }
+                    }
+                }
+            }
+        });
+
+        // Update Summary Stats
+        document.getElementById('totalProvinsi').textContent = totalProvinsi;
+        document.getElementById('totalKategori').textContent = totalKategori;
+        document.getElementById('ratingTertinggi').textContent = ratingTertinggi > 0 ? ratingTertinggi + '/5' : '-';
+        /*]]>*/
+    </script>
+</div>
+
+</body>
+</html>

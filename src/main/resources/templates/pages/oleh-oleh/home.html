@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" 
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{layouts/base}">
+<head>
+    <title>Dashboard Oleh-Oleh</title>
+</head>
+<body>
+
+<div layout:fragment="content">
+    
+    <!-- Flash Messages -->
+    <div th:if="${success}" class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle-fill"></i> <span th:text="${success}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    
+    <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle-fill"></i> <span th:text="${error}"></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+
+    <!-- Bagian Atas: Search & Stats -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2 class="mb-3">
+                <i class="bi bi-gift-fill text-primary"></i> Daftar Koleksi Oleh-Oleh
+            </h2>
+            
+            <!-- Search Form -->
+            <form method="get" action="/" class="mb-3">
+                <div class="input-group">
+                    <input type="text" name="search" class="form-control" 
+                           placeholder="Cari oleh-oleh..." 
+                           th:value="${searchKeyword}">
+                    <button class="btn btn-outline-primary" type="submit">
+                        <i class="bi bi-search"></i> Cari
+                    </button>
+                    <a href="/" class="btn btn-outline-secondary" th:if="${searchKeyword != ''}">
+                        <i class="bi bi-x-circle"></i> Clear
+                    </a>
+                </div>
+            </form>
+            
+            <!-- Tombol Tambah dengan Modal -->
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addOlehOlehModal">
+                <i class="bi bi-plus-circle"></i> Tambah Oleh-Oleh Baru
+            </button>
+        </div>
+        
+        <!-- Dashboard Stats -->
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h6 class="card-subtitle mb-2">Total Koleksi</h6>
+                    <h2 class="card-title" th:text="${totalOlehOleh} ?: 0">0</h2>
+                    <small>
+                        <i class="bi bi-star-fill"></i> 
+                        <span th:text="${jumlahRekomendasi} ?: 0">0</span> Rekomendasi
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Poin 6: Fitur Tampilan Daftar Data -->
+    <div class="table-responsive">
+        <table class="table table-hover table-bordered">
+            <thead class="table-dark">
+                <tr>
+                    <th width="100">Foto</th>
+                    <th>Nama</th>
+                    <th>Asal Daerah</th>
+                    <th>Kategori</th>
+                    <th>Harga</th>
+                    <th>Rating</th>
+                    <th width="200">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr th:each="item : ${olehOlehList}">
+                    <td class="text-center">
+                        <img th:if="${item.fotoPath != null}" 
+                             th:src="@{'/oleh-oleh/foto/' + ${item.fotoPath}}" 
+                             width="80" height="80" 
+                             class="img-thumbnail"
+                             style="object-fit: cover;">
+                        <div th:unless="${item.fotoPath != null}" 
+                             class="bg-secondary text-white d-flex align-items-center justify-content-center" 
+                             style="width: 80px; height: 80px;">
+                            <i class="bi bi-image fs-4"></i>
+                        </div>
+                    </td>
+                    <td>
+                        <strong th:text="${item.namaOlehOleh}"></strong>
+                        <br>
+                        <small class="text-muted" th:text="${#strings.abbreviate(item.deskripsi, 50)}"></small>
+                    </td>
+                    <td>
+                        <span th:text="${item.asalDaerah}"></span><br>
+                        <small class="text-muted">
+                            <i class="bi bi-geo-alt"></i> <span th:text="${item.provinsi}"></span>
+                        </small>
+                    </td>
+                    <td>
+                        <span class="badge bg-info text-dark" th:text="${item.kategori}"></span>
+                        <br>
+                        <span th:if="${item.isRekomendasi}" class="badge bg-warning text-dark mt-1">
+                            <i class="bi bi-star-fill"></i> Rekomendasi
+                        </span>
+                    </td>
+                    <td>
+                        <span th:if="${item.hargaPerkiraan != null}">
+                            Rp <span th:text="${#numbers.formatDecimal(item.hargaPerkiraan, 0, 'COMMA', 0, 'POINT')}"></span>
+                        </span>
+                        <span th:unless="${item.hargaPerkiraan != null}" class="text-muted">-</span>
+                    </td>
+                    <td class="text-center">
+                        <span th:if="${item.rating != null}">
+                            <i class="bi bi-star-fill text-warning"></i>
+                            <span th:text="${item.rating} + '/5'"></span>
+                        </span>
+                        <span th:unless="${item.rating != null}" class="text-muted">-</span>
+                    </td>
+                    <td>
+                        <a th:href="@{/oleh-oleh/{id}(id=${item.id})}" 
+                           class="btn btn-sm btn-info">
+                            <i class="bi bi-eye"></i>
+                        </a>
+                        
+                        <button type="button" 
+                                class="btn btn-sm btn-warning edit-btn"
+                                data-bs-toggle="modal" 
+                                data-bs-target="#editOlehOlehModal"
+                                th:attr="data-id=${item.id},
+                                         data-nama=${item.namaOlehOleh},
+                                         data-daerah=${item.asalDaerah},
+                                         data-provinsi=${item.provinsi},
+                                         data-kategori=${item.kategori},
+                                         data-deskripsi=${item.deskripsi},
+                                         data-harga=${item.hargaPerkiraan},
+                                         data-tempat=${item.tempatBeli},
+                                         data-rating=${item.rating},
+                                         data-rekomendasi=${item.isRekomendasi}">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        
+                        <button type="button" 
+                                class="btn btn-sm btn-danger delete-btn"
+                                data-bs-toggle="modal" 
+                                data-bs-target="#deleteOlehOlehModal"
+                                th:attr="data-id=${item.id},data-nama=${item.namaOlehOleh}">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+                <tr th:if="${#lists.isEmpty(olehOlehList)}">
+                    <td colspan="7" class="text-center py-5">
+                        <i class="bi bi-inbox fs-1 text-muted"></i>
+                        <p class="text-muted mt-3">Belum ada data oleh-oleh. Yuk tambah koleksi pertamamu!</p>
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addOlehOlehModal">
+                            <i class="bi bi-plus-circle"></i> Tambah Sekarang
+                        </button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Modal Tambah Oleh-Oleh dengan Upload Foto -->
+    <div class="modal fade" id="addOlehOlehModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <form th:action="@{/oleh-oleh/add-with-photo}" method="post" enctype="multipart/form-data">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">
+                            <i class="bi bi-plus-circle"></i> Tambah Oleh-Oleh Baru
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Upload Foto Section -->
+                        <div class="mb-4 text-center">
+                            <label class="form-label fw-bold">Foto Oleh-Oleh</label>
+                            <div class="border rounded p-3 bg-light">
+                                <div id="addImagePreview" class="mb-3" style="display: none;">
+                                    <img id="addPreviewImg" src="" class="img-fluid rounded" style="max-height: 200px;">
+                                </div>
+                                <div id="addPlaceholder" class="text-muted">
+                                    <i class="bi bi-image fs-1"></i>
+                                    <p class="mb-0">Pilih foto untuk preview</p>
+                                </div>
+                                <input type="file" class="form-control mt-3" name="fotoFile" id="addFotoFile" 
+                                       accept="image/jpeg,image/jpg,image/png,image/gif,image/webp">
+                                <small class="text-muted">Format: JPEG, PNG, GIF, WebP (Max 5MB)</small>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Nama Oleh-Oleh *</label>
+                                <input type="text" class="form-control" name="namaOlehOleh" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Asal Daerah *</label>
+                                <input type="text" class="form-control" name="asalDaerah" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Provinsi *</label>
+                                <select class="form-select" name="provinsi" required>
+                                    <option value="">Pilih Provinsi</option>
+                                    <option th:each="prov : ${T(org.delcom.app.utils.ConstUtil).PROVINSI_INDONESIA}" 
+                                            th:value="${prov}" 
+                                            th:text="${prov}"></option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Kategori *</label>
+                                <select class="form-select" name="kategori" required>
+                                    <option value="">Pilih Kategori</option>
+                                    <option th:each="kat : ${T(org.delcom.app.utils.ConstUtil).KATEGORI_OLEH_OLEH}" 
+                                            th:value="${kat}" 
+                                            th:text="${kat}"></option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Deskripsi *</label>
+                            <textarea class="form-control" name="deskripsi" rows="3" required></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Harga Perkiraan (Rp)</label>
+                                <input type="number" class="form-control" name="hargaPerkiraan" min="0">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Rating (1-5)</label>
+                                <select class="form-select" name="rating">
+                                    <option value="">-</option>
+                                    <option value="1">⭐ 1</option>
+                                    <option value="2">⭐ 2</option>
+                                    <option value="3">⭐ 3</option>
+                                    <option value="4">⭐ 4</option>
+                                    <option value="5">⭐ 5</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tempat Beli</label>
+                            <input type="text" class="form-control" name="tempatBeli">
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" name="isRekomendasi" value="true">
+                            <label class="form-check-label">
+                                <i class="bi bi-star-fill text-warning"></i> Tandai sebagai Rekomendasi
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-save"></i> Simpan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Edit Oleh-Oleh -->
+    <div class="modal fade" id="editOlehOlehModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <form th:action="@{/oleh-oleh/edit}" method="post" th:object="${olehOlehForm}">
+                    <input type="hidden" th:field="*{id}" id="editId">
+                    <div class="modal-header bg-warning">
+                        <h5 class="modal-title">
+                            <i class="bi bi-pencil"></i> Edit Oleh-Oleh
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Nama Oleh-Oleh *</label>
+                                <input type="text" class="form-control" th:field="*{namaOlehOleh}" id="editNama" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Asal Daerah *</label>
+                                <input type="text" class="form-control" th:field="*{asalDaerah}" id="editDaerah" required>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Provinsi *</label>
+                                <select class="form-select" th:field="*{provinsi}" id="editProvinsi" required>
+                                    <option value="">Pilih Provinsi</option>
+                                    <option th:each="prov : ${T(org.delcom.app.utils.ConstUtil).PROVINSI_INDONESIA}" 
+                                            th:value="${prov}" 
+                                            th:text="${prov}"></option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Kategori *</label>
+                                <select class="form-select" th:field="*{kategori}" id="editKategori" required>
+                                    <option value="">Pilih Kategori</option>
+                                    <option th:each="kat : ${T(org.delcom.app.utils.ConstUtil).KATEGORI_OLEH_OLEH}" 
+                                            th:value="${kat}" 
+                                            th:text="${kat}"></option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Deskripsi *</label>
+                            <textarea class="form-control" th:field="*{deskripsi}" rows="3" id="editDeskripsi" required></textarea>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Harga Perkiraan (Rp)</label>
+                                <input type="number" class="form-control" th:field="*{hargaPerkiraan}" id="editHarga" min="0">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">Rating (1-5)</label>
+                                <select class="form-select" th:field="*{rating}" id="editRating">
+                                    <option value="">-</option>
+                                    <option value="1">⭐ 1</option>
+                                    <option value="2">⭐ 2</option>
+                                    <option value="3">⭐ 3</option>
+                                    <option value="4">⭐ 4</option>
+                                    <option value="5">⭐ 5</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Tempat Beli</label>
+                            <input type="text" class="form-control" th:field="*{tempatBeli}" id="editTempat">
+                        </div>
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input" th:field="*{isRekomendasi}" id="editRekomendasi">
+                            <label class="form-check-label">
+                                <i class="bi bi-star-fill text-warning"></i> Tandai sebagai Rekomendasi
+                            </label>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-warning">
+                            <i class="bi bi-save"></i> Update
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Delete Oleh-Oleh -->
+    <div class="modal fade" id="deleteOlehOlehModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form th:action="@{/oleh-oleh/delete}" method="post" th:object="${olehOlehForm}">
+                    <input type="hidden" th:field="*{id}" id="deleteId">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">
+                            <i class="bi bi-trash"></i> Hapus Oleh-Oleh
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                            <strong>Peringatan!</strong> Data yang dihapus tidak dapat dikembalikan.
+                        </div>
+                        <p>Untuk konfirmasi, ketik nama oleh-oleh: <strong id="deleteNamaDisplay"></strong></p>
+                        <div class="mb-3">
+                            <label class="form-label">Konfirmasi Nama Oleh-Oleh *</label>
+                            <input type="text" class="form-control" th:field="*{confirmNamaOlehOleh}" id="deleteConfirm" required>
+                            <small class="text-muted">Ketik nama oleh-oleh dengan benar untuk menghapus</small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash"></i> Ya, Hapus
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Scripts -->
+<div layout:fragment="scripts">
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        document.addEventListener('DOMContentLoaded', function() {
+            // Auto show add modal if error
+            var addModalOpen = /*[[${addOlehOlehModalOpen}]]*/ false;
+            if(addModalOpen) {
+                var addModal = new bootstrap.Modal(document.getElementById('addOlehOlehModal'));
+                addModal.show();
+            }
+
+            // Image Preview for Add Modal
+            var addFotoInput = document.getElementById('addFotoFile');
+            if(addFotoInput) {
+                addFotoInput.addEventListener('change', function(e) {
+                    var file = e.target.files[0];
+                    if (file) {
+                        var reader = new FileReader();
+                        reader.onload = function(e) {
+                            document.getElementById('addPreviewImg').src = e.target.result;
+                            document.getElementById('addImagePreview').style.display = 'block';
+                            document.getElementById('addPlaceholder').style.display = 'none';
+                        };
+                        reader.readAsDataURL(file);
+                    } else {
+                        document.getElementById('addImagePreview').style.display = 'none';
+                        document.getElementById('addPlaceholder').style.display = 'block';
+                    }
+                });
+            }
+        });
+
+        // Fill Edit Modal
+        var editModal = document.getElementById('editOlehOlehModal');
+        if(editModal) {
+            editModal.addEventListener('show.bs.modal', function(event) {
+                var button = event.relatedTarget;
+                
+                document.getElementById('editId').value = button.getAttribute('data-id') || '';
+                document.getElementById('editNama').value = button.getAttribute('data-nama') || '';
+                document.getElementById('editDaerah').value = button.getAttribute('data-daerah') || '';
+                document.getElementById('editProvinsi').value = button.getAttribute('data-provinsi') || '';
+                document.getElementById('editKategori').value = button.getAttribute('data-kategori') || '';
+                document.getElementById('editDeskripsi').value = button.getAttribute('data-deskripsi') || '';
+                document.getElementById('editHarga').value = button.getAttribute('data-harga') || '';
+                document.getElementById('editTempat').value = button.getAttribute('data-tempat') || '';
+                document.getElementById('editRating').value = button.getAttribute('data-rating') || '';
+                document.getElementById('editRekomendasi').checked = button.getAttribute('data-rekomendasi') === 'true';
+            });
+        }
+
+        // Fill Delete Modal
+        var deleteModal = document.getElementById('deleteOlehOlehModal');
+        if(deleteModal) {
+            deleteModal.addEventListener('show.bs.modal', function(event) {
+                var button = event.relatedTarget;
+                var id = button.getAttribute('data-id');
+                var nama = button.getAttribute('data-nama');
+                
+                document.getElementById('deleteId').value = id;
+                document.getElementById('deleteNamaDisplay').textContent = nama;
+                document.getElementById('deleteConfirm').value = '';
+            });
+        }
+        /*]]>*/
+    </script>
+</div>
+
+</body>
+</html>

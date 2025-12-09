@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html layout:decorate="~{layouts/base}">
+<head><title>Tambah Data</title></head>
+<body>
+
+<div layout:fragment="content">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">Form Tambah Oleh-Oleh</h4>
+                </div>
+                <div class="card-body">
+                    
+                    <!-- Form Upload Wajib pakai enctype -->
+                    <form action="/oleholeh/save" method="post" enctype="multipart/form-data" th:object="${oleholeh}">
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label>Nama Oleh-Oleh</label>
+                                <input type="text" th:field="*{namaOlehOleh}" class="form-control" required placeholder="Contoh: Bakpia Pathok">
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label>Kategori</label>
+                                <select th:field="*{kategori}" class="form-select">
+                                    <option value="Makanan">Makanan</option>
+                                    <option value="Minuman">Minuman</option>
+                                    <option value="Kerajinan">Kerajinan</option>
+                                    <option value="Pakaian">Pakaian</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label>Asal Daerah (Kota)</label>
+                                <input type="text" th:field="*{asalDaerah}" class="form-control" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label>Provinsi</label>
+                                <input type="text" th:field="*{provinsi}" class="form-control" required>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label>Deskripsi</label>
+                            <textarea th:field="*{deskripsi}" class="form-control" rows="3"></textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label>Harga Perkiraan (Rp)</label>
+                                <input type="number" th:field="*{hargaPerkiraan}" class="form-control">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label>Rating (1-5)</label>
+                                <input type="number" th:field="*{rating}" min="1" max="5" class="form-control">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Rekomendasi?</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" th:field="*{isRekomendasi}">
+                                    <label class="form-check-label">Ya, Sangat Enak!</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- INPUT GAMBAR -->
+                        <div class="mb-4">
+                            <label>Foto Oleh-Oleh</label>
+                            <input type="file" name="imageFile" class="form-control" accept="image/*">
+                            <small class="text-muted">Format: JPG, PNG.</small>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">Simpan Data</button>
+                            <a href="/oleholeh" class="btn btn-secondary">Batal</a>
+                        </div>
+
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

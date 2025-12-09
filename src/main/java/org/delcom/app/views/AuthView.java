@@ -51,7 +51,10 @@ public class AuthView {
             return "redirect:/";
         }
 
+        // Hide navbar di halaman login
+        model.addAttribute("showNavbar", false);
         model.addAttribute("loginForm", new LoginForm());
+        
         return ConstUtil.TEMPLATE_PAGES_AUTH_LOGIN;
     }
 
@@ -60,6 +63,9 @@ public class AuthView {
             BindingResult bindingResult,
             HttpSession session,
             Model model) {
+
+        // Hide navbar di halaman login (jika error)
+        model.addAttribute("showNavbar", false);
 
         // Validasi form
         if (bindingResult.hasErrors()) {
@@ -110,7 +116,10 @@ public class AuthView {
             return "redirect:/";
         }
 
+        // Hide navbar di halaman register
+        model.addAttribute("showNavbar", false);
         model.addAttribute("registerForm", new RegisterForm());
+        
         return ConstUtil.TEMPLATE_PAGES_AUTH_REGISTER;
     }
 
@@ -120,6 +129,9 @@ public class AuthView {
             RedirectAttributes redirectAttributes,
             HttpSession session,
             Model model) {
+
+        // Hide navbar di halaman register (jika error)
+        model.addAttribute("showNavbar", false);
 
         // Validasi form
         if (bindingResult.hasErrors()) {
@@ -153,7 +165,12 @@ public class AuthView {
 
     @GetMapping("/logout")
     public String logout(HttpSession session) {
+        // Invalidate session
         session.invalidate();
-        return "redirect:/auth/login";
+        
+        // Clear security context
+        SecurityContextHolder.clearContext();
+        
+        return "redirect:/auth/login?logout";
     }
 }

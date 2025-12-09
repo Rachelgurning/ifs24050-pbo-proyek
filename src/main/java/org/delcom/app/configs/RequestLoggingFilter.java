@@ -1,15 +1,21 @@
 package org.delcom.app.configs;
 
 import jakarta.servlet.FilterChain;
+import jakarta.servlet.MultipartConfigElement;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.servlet.MultipartConfigFactory;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Component;
+import org.springframework.util.unit.DataSize;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Arrays;
+
 
 @Component
 public class RequestLoggingFilter extends OncePerRequestFilter {
@@ -73,4 +79,20 @@ public class RequestLoggingFilter extends OncePerRequestFilter {
             System.out.println(log);
         }
     }
+    @Configuration
+public class UploadConfig {
+
+    @Bean
+    public MultipartConfigElement multipartConfigElement() {
+        MultipartConfigFactory factory = new MultipartConfigFactory();
+        
+        // Memaksa batas upload file jadi 50MB
+        factory.setMaxFileSize(DataSize.ofMegabytes(50));
+        
+        // Memaksa batas total request jadi 50MB
+        factory.setMaxRequestSize(DataSize.ofMegabytes(50));
+        
+        return factory.createMultipartConfig();
+    }
+}
 }

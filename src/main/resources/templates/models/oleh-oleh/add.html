@@ -1,6 +1,8 @@
 <!DOCTYPE html>
-<html layout:decorate="~{layouts/base}">
-<head><title>Tambah Data</title></head>
+<html layout:decorate="~{layouts/base}" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Tambah Data</title>
+</head>
 <body>
 
 <div layout:fragment="content">
@@ -12,16 +14,22 @@
                 </div>
                 <div class="card-body">
                     
-                    <!-- Form Upload Wajib pakai enctype -->
-                    <form action="/oleholeh/save" method="post" enctype="multipart/form-data" th:object="${oleholeh}">
+                    <!-- 
+                        PERBAIKAN: 
+                        1. th:action mengarah ke /oleh-oleh/add-with-photo
+                        2. th:object menggunakan variable "olehOlehForm"
+                        3. enctype sudah benar (multipart/form-data)
+                    -->
+                    <form th:action="@{/oleh-oleh/add-with-photo}" method="post" enctype="multipart/form-data" th:object="${olehOlehForm}">
                         
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label>Nama Oleh-Oleh</label>
+                                <label class="form-label">Nama Oleh-Oleh</label>
                                 <input type="text" th:field="*{namaOlehOleh}" class="form-control" required placeholder="Contoh: Bakpia Pathok">
+                                <div class="text-danger" th:if="${#fields.hasErrors('namaOlehOleh')}" th:errors="*{namaOlehOleh}"></div>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label>Kategori</label>
+                                <label class="form-label">Kategori</label>
                                 <select th:field="*{kategori}" class="form-select">
                                     <option value="Makanan">Makanan</option>
                                     <option value="Minuman">Minuman</option>
@@ -33,48 +41,57 @@
 
                         <div class="row">
                             <div class="col-md-6 mb-3">
-                                <label>Asal Daerah (Kota)</label>
+                                <label class="form-label">Asal Daerah (Kota)</label>
                                 <input type="text" th:field="*{asalDaerah}" class="form-control" required>
                             </div>
                             <div class="col-md-6 mb-3">
-                                <label>Provinsi</label>
+                                <label class="form-label">Provinsi</label>
                                 <input type="text" th:field="*{provinsi}" class="form-control" required>
                             </div>
                         </div>
 
                         <div class="mb-3">
-                            <label>Deskripsi</label>
+                            <label class="form-label">Tempat Beli</label>
+                            <input type="text" th:field="*{tempatBeli}" class="form-control" placeholder="Nama Toko / Pasar">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Deskripsi</label>
                             <textarea th:field="*{deskripsi}" class="form-control" rows="3"></textarea>
                         </div>
 
                         <div class="row">
                             <div class="col-md-4 mb-3">
-                                <label>Harga Perkiraan (Rp)</label>
+                                <label class="form-label">Harga Perkiraan (Rp)</label>
                                 <input type="number" th:field="*{hargaPerkiraan}" class="form-control">
                             </div>
                             <div class="col-md-4 mb-3">
-                                <label>Rating (1-5)</label>
+                                <label class="form-label">Rating (1-5)</label>
                                 <input type="number" th:field="*{rating}" min="1" max="5" class="form-control">
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label class="form-label">Rekomendasi?</label>
-                                <div class="form-check">
+                                <div class="form-check mt-2">
                                     <input class="form-check-input" type="checkbox" th:field="*{isRekomendasi}">
                                     <label class="form-check-label">Ya, Sangat Enak!</label>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- INPUT GAMBAR -->
+                        <!-- 
+                           PERBAIKAN INPUT GAMBAR:
+                           name="fotoFile" HARUS SAMA dengan @RequestParam di Controller Java 
+                        -->
                         <div class="mb-4">
-                            <label>Foto Oleh-Oleh</label>
-                            <input type="file" name="imageFile" class="form-control" accept="image/*">
-                            <small class="text-muted">Format: JPG, PNG.</small>
+                            <label class="form-label">Foto Oleh-Oleh</label>
+                            <input type="file" name="fotoFile" class="form-control" accept="image/png, image/jpeg, image/webp">
+                            <small class="text-muted">Format: JPG, PNG, WebP. Maksimal 5MB.</small>
                         </div>
 
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-success btn-lg">Simpan Data</button>
-                            <a href="/oleholeh" class="btn btn-secondary">Batal</a>
+                            <!-- Pastikan link Batal mengarah kembali ke halaman list -->
+                            <a th:href="@{/}" class="btn btn-secondary">Batal</a>
                         </div>
 
                     </form>

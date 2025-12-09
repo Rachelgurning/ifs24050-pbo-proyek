@@ -1,9 +1,10 @@
 package org.delcom.app.services;
 
+import java.io.IOException;
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
+import org.delcom.app.dto.FotoOlehOlehForm; // Pastikan Import ini
 import org.delcom.app.entities.OlehOleh;
 import org.delcom.app.repositories.OlehOlehRepository;
 import org.springframework.stereotype.Service;
@@ -28,6 +29,26 @@ public class OlehOlehService {
                                          kategori, deskripsi, hargaPerkiraan, 
                                          tempatBeli, rating, isRekomendasi);
         return olehOlehRepository.save(olehOleh);
+    }
+
+    // --- FITUR UPLOAD FOTO (FIXED) ---
+    @Transactional
+    public void uploadFoto(UUID id, FotoOlehOlehForm form) throws IOException {
+        // 1. Cari Data
+        OlehOleh olehOleh = olehOlehRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Data Oleh-oleh tidak ditemukan"));
+
+        // 2. Hapus file lama jika ada
+        if (olehOleh.getFotoPath() != null && !olehOleh.getFotoPath().isEmpty()) {
+            fileStorageService.deleteFile(olehOleh.getFotoPath());
+        }
+
+        // 3. Simpan file baru (Nama file disesuaikan dengan ID)
+        String filename = fileStorageService.storeFile(form.getFotoFile(), id);
+
+        // 4. Update Database
+        olehOleh.setFotoPath(filename);
+        olehOlehRepository.save(olehOleh);
     }
 
     public List<OlehOleh> getAllOlehOleh(UUID userId, String search) {
@@ -76,23 +97,6 @@ public class OlehOlehService {
 
         olehOlehRepository.deleteById(id);
         return true;
-    }
-
-    @Transactional
-    public OlehOleh updateFoto(UUID olehOlehId, String fotoFilename) {
-        Optional<OlehOleh> olehOlehOpt = olehOlehRepository.findById(olehOlehId);
-        if (olehOlehOpt.isPresent()) {
-            OlehOleh olehOleh = olehOlehOpt.get();
-
-            // Hapus file foto lama jika ada
-            if (olehOleh.getFotoPath() != null) {
-                fileStorageService.deleteFile(olehOleh.getFotoPath());
-            }
-
-            olehOleh.setFotoPath(fotoFilename);
-            return olehOlehRepository.save(olehOleh);
-        }
-        return null;
     }
 
     // ======= Filter Methods =======

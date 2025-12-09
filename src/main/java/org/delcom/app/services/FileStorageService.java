@@ -3,6 +3,7 @@ package org.delcom.app.services;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -13,114 +14,103 @@ import java.util.UUID;
 
 @Service
 public class FileStorageService {
+    
     @Value("${app.upload.dir:./uploads}")
     protected String uploadDir;
 
+    // --- METHOD BARU: Simpan file secara umum (menggunakan Timestamp) ---
     /**
-     * Menyimpan file foto oleh-oleh
-     * @param file MultipartFile yang diupload
-     * @param olehOlehId UUID oleh-oleh
-     * @return nama file yang tersimpan
+     * Menyimpan file dengan nama unik berbasis waktu (tanpa perlu UUID entity).
+     * Cocok untuk upload cepat.
      */
-    public String storeFile(MultipartFile file, UUID olehOlehId) throws IOException {
-        // Buat directory jika belum ada
-        Path uploadPath = Paths.get(uploadDir);
-        if (!Files.exists(uploadPath)) {
-            Files.createDirectories(uploadPath);
-        }
+    public String storeFile(MultipartFile file) throws IOException {
+        createDirIfNotExist();
 
-        // Generate unique filename
-        String originalFilename = file.getOriginalFilename();
-        String fileExtension = "";
-        if (originalFilename != null && originalFilename.contains(".")) {
-            fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
-        }
-
-        String filename = "foto_oleholeh_" + olehOlehId.toString() + fileExtension;
+        // Bersihkan nama file asli
+        String originalFilename = StringUtils.cleanPath(file.getOriginalFilename());
+        
+        // Buat nama unik: TIMESTAMP_NAMAASLI
+        String filename = System.currentTimeMillis() + "_" + originalFilename;
 
         // Simpan file
-        Path filePath = uploadPath.resolve(filename);
+        Path filePath = Paths.get(uploadDir).resolve(filename);
         Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
 
         return filename;
     }
 
-    /**
-     * Menyimpan file dengan nama custom (untuk cover user atau lainnya)
-     * @param file MultipartFile yang diupload
-     * @param prefix prefix nama file (misal: "cover", "profile")
-     * @param entityId UUID entity terkait
-     * @return nama file yang tersimpan
-     */
+    // --- METHOD EXISTING: Simpan file berbasis UUID Entity ---
+    public String storeFile(MultipartFile file, UUID entityId) throws IOException {
+        createDirIfNotExist();
+
+        String fileExtension = getExtension(file.getOriginalFilename());
+        
+        // Nama file: foto_oleholeh_UUID.jpg
+        String filename = "foto_oleholeh_" + entityId.toString() + fileExtension;
+
+        Path filePath = Paths.get(uploadDir).resolve(filename);
+        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+        return filename;
+    }
+
+    // --- METHOD EXISTING: Simpan file dengan Prefix Custom ---
     public String storeFileWithPrefix(MultipartFile file, String prefix, UUID entityId) throws IOException {
+        createDirIfNotExist();
+
+        String fileExtension = getExtension(file.getOriginalFilename());
+        
+        // Nama file: prefix_UUID.jpg
+        String filename = prefix + "_" + entityId.toString() + fileExtension;
+
+        Path filePath = Paths.get(uploadDir).resolve(filename);
+        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
+
+        return filename;
+    }
+
+    // --- HELPER METHODS ---
+
+    private void createDirIfNotExist() throws IOException {
         Path uploadPath = Paths.get(uploadDir);
         if (!Files.exists(uploadPath)) {
             Files.createDirectories(uploadPath);
         }
-
-        String originalFilename = file.getOriginalFilename();
-        String fileExtension = "";
-        if (originalFilename != null && originalFilename.contains(".")) {
-            fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
-        }
-
-        String filename = prefix + "_" + entityId.toString() + fileExtension;
-
-        Path filePath = uploadPath.resolve(filename);
-        Files.copy(file.getInputStream(), filePath, StandardCopyOption.REPLACE_EXISTING);
-
-        return filename;
     }
 
-    /**
-     * Menghapus file dari storage
-     * @param filename nama file yang akan dihapus
-     * @return true jika berhasil dihapus
-     */
+    private String getExtension(String originalFilename) {
+        if (originalFilename != null && originalFilename.contains(".")) {
+            return originalFilename.substring(originalFilename.lastIndexOf("."));
+        }
+        return "";
+    }
+
     public boolean deleteFile(String filename) {
         try {
             Path filePath = Paths.get(uploadDir).resolve(filename);
             return Files.deleteIfExists(filePath);
         } catch (IOException e) {
+            System.err.println("Gagal menghapus file: " + filename);
             return false;
         }
     }
 
-    /**
-     * Load file path
-     * @param filename nama file
-     * @return Path object
-     */
     public Path loadFile(String filename) {
         return Paths.get(uploadDir).resolve(filename);
     }
 
-    /**
-     * Cek apakah file ada
-     * @param filename nama file
-     * @return true jika file ada
-     */
     public boolean fileExists(String filename) {
         return Files.exists(loadFile(filename));
     }
 
-    /**
-     * Validasi file yang diupload
-     * @param file MultipartFile
-     * @return true jika valid
-     */
+    // --- VALIDATION ---
+
     public boolean isValidImageFile(MultipartFile file) {
-        if (file == null || file.isEmpty()) {
-            return false;
-        }
-
-        // Cek tipe file
+        if (file == null || file.isEmpty()) return false;
+        
         String contentType = file.getContentType();
-        if (contentType == null) {
-            return false;
-        }
+        if (contentType == null) return false;
 
-        // Hanya terima file gambar
         return contentType.equals("image/jpeg") || 
                contentType.equals("image/jpg") || 
                contentType.equals("image/png") || 
@@ -128,18 +118,9 @@ public class FileStorageService {
                contentType.equals("image/webp");
     }
 
-    /**
-     * Validasi ukuran file (max 5MB)
-     * @param file MultipartFile
-     * @return true jika ukuran valid
-     */
     public boolean isValidFileSize(MultipartFile file) {
-        if (file == null) {
-            return false;
-        }
-        
-        // Max 5MB
-        long maxSize = 5 * 1024 * 1024; // 5MB in bytes
+        if (file == null) return false;
+        long maxSize = 5 * 1024 * 1024; // 5MB
         return file.getSize() <= maxSize;
     }
 }

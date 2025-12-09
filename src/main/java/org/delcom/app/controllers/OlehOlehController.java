@@ -1,22 +1,25 @@
 package org.delcom.app.controllers;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 import org.delcom.app.configs.ApiResponse;
 import org.delcom.app.configs.AuthContext;
+import org.delcom.app.dto.FotoOlehOlehForm; // Import DTO
 import org.delcom.app.entities.OlehOleh;
 import org.delcom.app.entities.User;
 import org.delcom.app.services.OlehOlehService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType; // Import MediaType
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
 
 @RestController
 @RequestMapping("/api/oleh-oleh")
 public class OlehOlehController {
+    
     private final OlehOlehService olehOlehService;
 
     @Autowired
@@ -26,12 +29,53 @@ public class OlehOlehController {
         this.olehOlehService = olehOlehService;
     }
 
-    
+    // ==========================================
+    // FITUR BARU: UPLOAD FOTO
+    // ==========================================
+    @PostMapping(value = "/{id}/upload-foto", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<String>> uploadFoto(
+            @PathVariable UUID id,
+            @ModelAttribute FotoOlehOlehForm form) { // @ModelAttribute untuk menangani form-data
+
+        // 1. Validasi Autentikasi
+        if (!authContext.isAuthenticated()) {
+            return ResponseEntity.status(403)
+                    .body(new ApiResponse<>("fail", "User tidak terautentikasi", null));
+        }
+
+        // 2. Validasi File (Ukuran & Tipe) dari DTO
+        String errorValidation = form.getValidationError();
+        if (errorValidation != null) {
+            return ResponseEntity.badRequest()
+                    .body(new ApiResponse<>("fail", errorValidation, null));
+        }
+
+        try {
+            // 3. Panggil Service untuk proses upload & update DB
+            olehOlehService.uploadFoto(id, form);
+
+            return ResponseEntity.ok(new ApiResponse<>(
+                    "success", 
+                    "Foto berhasil diupload!", 
+                    null));
+
+        } catch (IOException e) {
+            return ResponseEntity.status(500)
+                    .body(new ApiResponse<>("error", "Gagal menyimpan file ke server", null));
+        } catch (RuntimeException e) {
+            // Menangkap error jika ID tidak ditemukan (dari Service)
+            return ResponseEntity.badRequest()
+                    .body(new ApiResponse<>("fail", e.getMessage(), null));
+        }
+    }
+
+    // ==========================================
+    // CRUD OPERATION EXISTING
+    // ==========================================
+
     // Menambahkan oleh-oleh baru
-    // -------------------------------
     @PostMapping
     public ResponseEntity<ApiResponse<Map<String, UUID>>> createOlehOleh(@RequestBody OlehOleh reqOlehOleh) {
-
         // Validasi input
         if (reqOlehOleh.getNamaOlehOleh() == null || reqOlehOleh.getNamaOlehOleh().isEmpty()) {
             return ResponseEntity.badRequest().body(new ApiResponse<>("fail", "Nama oleh-oleh tidak valid", null));
@@ -63,18 +107,16 @@ public class OlehOlehController {
                 reqOlehOleh.getRating(),
                 reqOlehOleh.getIsRekomendasi() != null ? reqOlehOleh.getIsRekomendasi() : false);
 
-        return ResponseEntity.ok(new ApiResponse<Map<String, UUID>>(
+        return ResponseEntity.ok(new ApiResponse<>(
                 "success",
                 "Oleh-oleh berhasil ditambahkan",
                 Map.of("id", newOlehOleh.getId())));
     }
 
     // Mendapatkan semua oleh-oleh dengan opsi pencarian
-    // -------------------------------
     @GetMapping
     public ResponseEntity<ApiResponse<Map<String, List<OlehOleh>>>> getAllOlehOleh(
             @RequestParam(required = false) String search) {
-        // Validasi autentikasi
         if (!authContext.isAuthenticated()) {
             return ResponseEntity.status(403).body(new ApiResponse<>("fail", "User tidak terautentikasi", null));
         }
@@ -88,10 +130,8 @@ public class OlehOlehController {
     }
 
     // Mendapatkan oleh-oleh berdasarkan ID
-    // -------------------------------
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<Map<String, OlehOleh>>> getOlehOlehById(@PathVariable UUID id) {
-        // Validasi autentikasi
         if (!authContext.isAuthenticated()) {
             return ResponseEntity.status(403).body(new ApiResponse<>("fail", "User tidak terautentikasi", null));
         }
@@ -109,12 +149,10 @@ public class OlehOlehController {
     }
 
     // Memperbarui oleh-oleh berdasarkan ID
-    // -------------------------------
     @PutMapping("/{id}")
     public ResponseEntity<ApiResponse<OlehOleh>> updateOlehOleh(@PathVariable UUID id,
             @RequestBody OlehOleh reqOlehOleh) {
 
-        // Validasi input
         if (reqOlehOleh.getNamaOlehOleh() == null || reqOlehOleh.getNamaOlehOleh().isEmpty()) {
             return ResponseEntity.badRequest().body(new ApiResponse<>("fail", "Nama oleh-oleh tidak valid", null));
         } else if (reqOlehOleh.getAsalDaerah() == null || reqOlehOleh.getAsalDaerah().isEmpty()) {
@@ -127,7 +165,6 @@ public class OlehOlehController {
             return ResponseEntity.badRequest().body(new ApiResponse<>("fail", "Deskripsi tidak valid", null));
         }
 
-        // Validasi autentikasi
         if (!authContext.isAuthenticated()) {
             return ResponseEntity.status(403).body(new ApiResponse<>("fail", "User tidak terautentikasi", null));
         }
@@ -154,10 +191,8 @@ public class OlehOlehController {
     }
 
     // Menghapus oleh-oleh berdasarkan ID
-    // -------------------------------
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<String>> deleteOlehOleh(@PathVariable UUID id) {
-        // Validasi autentikasi
         if (!authContext.isAuthenticated()) {
             return ResponseEntity.status(403).body(new ApiResponse<>("fail", "User tidak terautentikasi", null));
         }
@@ -176,7 +211,6 @@ public class OlehOlehController {
 
     // ======= Filter Endpoints =======
 
-    // Filter berdasarkan kategori
     @GetMapping("/filter/kategori/{kategori}")
     public ResponseEntity<ApiResponse<Map<String, List<OlehOleh>>>> getByKategori(@PathVariable String kategori) {
         if (!authContext.isAuthenticated()) {
@@ -191,7 +225,6 @@ public class OlehOlehController {
                 Map.of("olehOleh", olehOlehList)));
     }
 
-    // Filter berdasarkan provinsi
     @GetMapping("/filter/provinsi/{provinsi}")
     public ResponseEntity<ApiResponse<Map<String, List<OlehOleh>>>> getByProvinsi(@PathVariable String provinsi) {
         if (!authContext.isAuthenticated()) {
@@ -206,7 +239,6 @@ public class OlehOlehController {
                 Map.of("olehOleh", olehOlehList)));
     }
 
-    // Daftar rekomendasi
     @GetMapping("/rekomendasi")
     public ResponseEntity<ApiResponse<Map<String, List<OlehOleh>>>> getRekomendasi() {
         if (!authContext.isAuthenticated()) {
@@ -223,7 +255,6 @@ public class OlehOlehController {
 
     // ======= Chart Data Endpoints =======
 
-    // Data chart kategori
     @GetMapping("/chart/kategori")
     public ResponseEntity<ApiResponse<Map<String, List<Object[]>>>> getChartKategori() {
         if (!authContext.isAuthenticated()) {
@@ -238,7 +269,6 @@ public class OlehOlehController {
                 Map.of("data", chartData)));
     }
 
-    // Data chart provinsi
     @GetMapping("/chart/provinsi")
     public ResponseEntity<ApiResponse<Map<String, List<Object[]>>>> getChartProvinsi() {
         if (!authContext.isAuthenticated()) {
@@ -253,7 +283,6 @@ public class OlehOlehController {
                 Map.of("data", chartData)));
     }
 
-    // Data chart harga rata-rata
     @GetMapping("/chart/harga")
     public ResponseEntity<ApiResponse<Map<String, List<Object[]>>>> getChartHarga() {
         if (!authContext.isAuthenticated()) {
@@ -268,7 +297,6 @@ public class OlehOlehController {
                 Map.of("data", chartData)));
     }
 
-    // Data chart rating
     @GetMapping("/chart/rating")
     public ResponseEntity<ApiResponse<Map<String, List<Object[]>>>> getChartRating() {
         if (!authContext.isAuthenticated()) {
@@ -282,6 +310,4 @@ public class OlehOlehController {
                 "Data chart rating berhasil diambil",
                 Map.of("data", chartData)));
     }
-
-    
 }

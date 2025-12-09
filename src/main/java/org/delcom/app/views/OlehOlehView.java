@@ -21,14 +21,16 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import jakarta.servlet.http.HttpSession;
+
 import jakarta.validation.Valid;
 
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MultipartFile;
 
 @Controller
 @RequestMapping("/oleh-oleh")
@@ -42,69 +44,49 @@ public class OlehOlehView {
         this.fileStorageService = fileStorageService;
     }
 
-    @PostMapping("/add")
-    public String postAddOlehOleh(@Valid @ModelAttribute("olehOlehForm") OlehOlehForm olehOlehForm,
-            RedirectAttributes redirectAttributes,
-            HttpSession session,
-            Model model) {
+    // ========================================================================
+    // 1. TAMBAH OLEH-OLEH + FOTO (Menggantikan method add yang lama)
+    // ========================================================================
+    @PostMapping("/add-with-photo")
+    public String postAddOlehOlehWithPhoto(
+            @Valid @ModelAttribute("olehOlehForm") OlehOlehForm olehOlehForm,
+            @RequestParam(value = "fotoFile", required = false) MultipartFile fotoFile,
+            RedirectAttributes redirectAttributes) {
 
-        // Autentikasi user
+        // Cek Autentikasi
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if ((authentication instanceof AnonymousAuthenticationToken)) {
+        if ((authentication instanceof AnonymousAuthenticationToken) || !(authentication.getPrincipal() instanceof User)) {
             return "redirect:/auth/logout";
         }
-        Object principal = authentication.getPrincipal();
-        if (!(principal instanceof User)) {
-            return "redirect:/auth/logout";
-        }
-        User authUser = (User) principal;
+        User authUser = (User) authentication.getPrincipal();
 
-        // Validasi form
+        // Validasi Manual Form Data
         if (olehOlehForm.getNamaOlehOleh() == null || olehOlehForm.getNamaOlehOleh().isBlank()) {
-            redirectAttributes.addFlashAttribute("error", "Nama oleh-oleh tidak boleh kosong");
-            redirectAttributes.addFlashAttribute("addOlehOlehModalOpen", true);
-            return "redirect:/";
+            return handleError(redirectAttributes, "Nama oleh-oleh tidak boleh kosong", "addOlehOlehModalOpen");
         }
-
-        if (olehOlehForm.getAsalDaerah() == null || olehOlehForm.getAsalDaerah().isBlank()) {
-            redirectAttributes.addFlashAttribute("error", "Asal daerah tidak boleh kosong");
-            redirectAttributes.addFlashAttribute("addOlehOlehModalOpen", true);
-            return "redirect:/";
+        if (!olehOlehForm.isValid()) {
+            return handleError(redirectAttributes, "Lengkapi semua data wajib (Asal Daerah, Provinsi, Kategori, Deskripsi)", "addOlehOlehModalOpen");
         }
-
-        if (olehOlehForm.getProvinsi() == null || olehOlehForm.getProvinsi().isBlank()) {
-            redirectAttributes.addFlashAttribute("error", "Provinsi tidak boleh kosong");
-            redirectAttributes.addFlashAttribute("addOlehOlehModalOpen", true);
-            return "redirect:/";
-        }
-
-        if (olehOlehForm.getKategori() == null || olehOlehForm.getKategori().isBlank()) {
-            redirectAttributes.addFlashAttribute("error", "Kategori tidak boleh kosong");
-            redirectAttributes.addFlashAttribute("addOlehOlehModalOpen", true);
-            return "redirect:/";
-        }
-
-        if (olehOlehForm.getDeskripsi() == null || olehOlehForm.getDeskripsi().isBlank()) {
-            redirectAttributes.addFlashAttribute("error", "Deskripsi tidak boleh kosong");
-            redirectAttributes.addFlashAttribute("addOlehOlehModalOpen", true);
-            return "redirect:/";
-        }
-
-        // Validasi rating (1-5)
         if (!olehOlehForm.isRatingValid()) {
-            redirectAttributes.addFlashAttribute("error", "Rating harus antara 1-5");
-            redirectAttributes.addFlashAttribute("addOlehOlehModalOpen", true);
-            return "redirect:/";
+            return handleError(redirectAttributes, "Rating harus antara 1-5", "addOlehOlehModalOpen");
         }
-
-        // Validasi harga
         if (!olehOlehForm.isHargaValid()) {
-            redirectAttributes.addFlashAttribute("error", "Harga tidak valid");
-            redirectAttributes.addFlashAttribute("addOlehOlehModalOpen", true);
-            return "redirect:/";
+            return handleError(redirectAttributes, "Harga tidak valid", "addOlehOlehModalOpen");
         }
 
-        // Simpan oleh-oleh
+        // Validasi Foto (Jika ada yang diupload)
+        FotoOlehOlehForm fotoForm = null;
+        if (fotoFile != null && !fotoFile.isEmpty()) {
+            fotoForm = new FotoOlehOlehForm(fotoFile);
+            if (!fotoForm.isValidImage()) {
+                return handleError(redirectAttributes, "Format foto harus JPG, PNG, GIF, atau WebP", "addOlehOlehModalOpen");
+            }
+            if (!fotoForm.isSizeValid()) {
+                return handleError(redirectAttributes, "Ukuran foto maksimal 5MB", "addOlehOlehModalOpen");
+            }
+        }
+
+        // Simpan Data Teks ke Database
         var entity = olehOlehService.createOlehOleh(
                 authUser.getId(),
                 olehOlehForm.getNamaOlehOleh(),
@@ -118,93 +100,47 @@ public class OlehOlehView {
                 olehOlehForm.getIsRekomendasi() != null ? olehOlehForm.getIsRekomendasi() : false);
 
         if (entity == null) {
-            redirectAttributes.addFlashAttribute("error", "Gagal menambahkan oleh-oleh");
-            redirectAttributes.addFlashAttribute("addOlehOlehModalOpen", true);
-            return "redirect:/";
+            return handleError(redirectAttributes, "Gagal menyimpan data ke database", "addOlehOlehModalOpen");
         }
 
-        // Redirect dengan pesan sukses
-        redirectAttributes.addFlashAttribute("success", "Oleh-oleh berhasil ditambahkan.");
+        // Proses Upload Foto (Jika ada)
+        if (fotoForm != null) {
+            try {
+                fotoForm.setId(entity.getId());
+                olehOlehService.uploadFoto(entity.getId(), fotoForm);
+            } catch (IOException e) {
+                redirectAttributes.addFlashAttribute("warning", "Data tersimpan, tapi gagal upload foto: " + e.getMessage());
+                return "redirect:/";
+            }
+        }
+
+        redirectAttributes.addFlashAttribute("success", "Oleh-oleh berhasil ditambahkan!");
         return "redirect:/";
     }
 
+    // ========================================================================
+    // 2. EDIT OLEH-OLEH (DATA TEKS)
+    // ========================================================================
     @PostMapping("/edit")
     public String postEditOlehOleh(@Valid @ModelAttribute("olehOlehForm") OlehOlehForm olehOlehForm,
-            RedirectAttributes redirectAttributes,
-            HttpSession session,
-            Model model) {
-        // Autentikasi user
+            RedirectAttributes redirectAttributes) {
+        
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if ((authentication instanceof AnonymousAuthenticationToken)) {
+        if ((authentication instanceof AnonymousAuthenticationToken) || !(authentication.getPrincipal() instanceof User)) {
             return "redirect:/auth/logout";
         }
+        User authUser = (User) authentication.getPrincipal();
 
-        Object principal = authentication.getPrincipal();
-        if (!(principal instanceof User)) {
-            return "redirect:/auth/logout";
-        }
-
-        User authUser = (User) principal;
-
-        // Validasi form
         if (olehOlehForm.getId() == null) {
-            redirectAttributes.addFlashAttribute("error", "ID oleh-oleh tidak valid");
-            redirectAttributes.addFlashAttribute("editOlehOlehModalOpen", true);
-            return "redirect:/";
+            return handleError(redirectAttributes, "ID tidak valid", "editOlehOlehModalOpen");
         }
 
+        // Validasi
         if (olehOlehForm.getNamaOlehOleh() == null || olehOlehForm.getNamaOlehOleh().isBlank()) {
-            redirectAttributes.addFlashAttribute("error", "Nama oleh-oleh tidak boleh kosong");
-            redirectAttributes.addFlashAttribute("editOlehOlehModalOpen", true);
             redirectAttributes.addFlashAttribute("editOlehOlehModalId", olehOlehForm.getId());
-            return "redirect:/";
+            return handleError(redirectAttributes, "Nama oleh-oleh wajib diisi", "editOlehOlehModalOpen");
         }
 
-        if (olehOlehForm.getAsalDaerah() == null || olehOlehForm.getAsalDaerah().isBlank()) {
-            redirectAttributes.addFlashAttribute("error", "Asal daerah tidak boleh kosong");
-            redirectAttributes.addFlashAttribute("editOlehOlehModalOpen", true);
-            redirectAttributes.addFlashAttribute("editOlehOlehModalId", olehOlehForm.getId());
-            return "redirect:/";
-        }
-
-        if (olehOlehForm.getProvinsi() == null || olehOlehForm.getProvinsi().isBlank()) {
-            redirectAttributes.addFlashAttribute("error", "Provinsi tidak boleh kosong");
-            redirectAttributes.addFlashAttribute("editOlehOlehModalOpen", true);
-            redirectAttributes.addFlashAttribute("editOlehOlehModalId", olehOlehForm.getId());
-            return "redirect:/";
-        }
-
-        if (olehOlehForm.getKategori() == null || olehOlehForm.getKategori().isBlank()) {
-            redirectAttributes.addFlashAttribute("error", "Kategori tidak boleh kosong");
-            redirectAttributes.addFlashAttribute("editOlehOlehModalOpen", true);
-            redirectAttributes.addFlashAttribute("editOlehOlehModalId", olehOlehForm.getId());
-            return "redirect:/";
-        }
-
-        if (olehOlehForm.getDeskripsi() == null || olehOlehForm.getDeskripsi().isBlank()) {
-            redirectAttributes.addFlashAttribute("error", "Deskripsi tidak boleh kosong");
-            redirectAttributes.addFlashAttribute("editOlehOlehModalOpen", true);
-            redirectAttributes.addFlashAttribute("editOlehOlehModalId", olehOlehForm.getId());
-            return "redirect:/";
-        }
-
-        // Validasi rating
-        if (!olehOlehForm.isRatingValid()) {
-            redirectAttributes.addFlashAttribute("error", "Rating harus antara 1-5");
-            redirectAttributes.addFlashAttribute("editOlehOlehModalOpen", true);
-            redirectAttributes.addFlashAttribute("editOlehOlehModalId", olehOlehForm.getId());
-            return "redirect:/";
-        }
-
-        // Validasi harga
-        if (!olehOlehForm.isHargaValid()) {
-            redirectAttributes.addFlashAttribute("error", "Harga tidak valid");
-            redirectAttributes.addFlashAttribute("editOlehOlehModalOpen", true);
-            redirectAttributes.addFlashAttribute("editOlehOlehModalId", olehOlehForm.getId());
-            return "redirect:/";
-        }
-
-        // Update oleh-oleh
         var updated = olehOlehService.updateOlehOleh(
                 authUser.getId(),
                 olehOlehForm.getId(),
@@ -219,104 +155,66 @@ public class OlehOlehView {
                 olehOlehForm.getIsRekomendasi());
 
         if (updated == null) {
-            redirectAttributes.addFlashAttribute("error", "Gagal memperbarui oleh-oleh");
-            redirectAttributes.addFlashAttribute("editOlehOlehModalOpen", true);
             redirectAttributes.addFlashAttribute("editOlehOlehModalId", olehOlehForm.getId());
-            return "redirect:/";
+            return handleError(redirectAttributes, "Gagal update data", "editOlehOlehModalOpen");
         }
 
-        // Redirect dengan pesan sukses
         redirectAttributes.addFlashAttribute("success", "Oleh-oleh berhasil diperbarui.");
         return "redirect:/";
     }
 
+    // ========================================================================
+    // 3. HAPUS OLEH-OLEH
+    // ========================================================================
     @PostMapping("/delete")
     public String postDeleteOlehOleh(@Valid @ModelAttribute("olehOlehForm") OlehOlehForm olehOlehForm,
-            RedirectAttributes redirectAttributes,
-            HttpSession session,
-            Model model) {
+            RedirectAttributes redirectAttributes) {
 
-        // Autentikasi user
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if ((authentication instanceof AnonymousAuthenticationToken)) {
+        if ((authentication instanceof AnonymousAuthenticationToken) || !(authentication.getPrincipal() instanceof User)) {
             return "redirect:/auth/logout";
         }
+        User authUser = (User) authentication.getPrincipal();
 
-        Object principal = authentication.getPrincipal();
-        if (!(principal instanceof User)) {
-            return "redirect:/auth/logout";
-        }
-
-        User authUser = (User) principal;
-
-        // Validasi form
-        if (olehOlehForm.getId() == null) {
-            redirectAttributes.addFlashAttribute("error", "ID oleh-oleh tidak valid");
-            redirectAttributes.addFlashAttribute("deleteOlehOlehModalOpen", true);
-            return "redirect:/";
-        }
-
-        if (olehOlehForm.getConfirmNamaOlehOleh() == null || olehOlehForm.getConfirmNamaOlehOleh().isBlank()) {
-            redirectAttributes.addFlashAttribute("error", "Konfirmasi nama oleh-oleh tidak boleh kosong");
-            redirectAttributes.addFlashAttribute("deleteOlehOlehModalOpen", true);
+        if (olehOlehForm.getId() == null) return handleError(redirectAttributes, "ID tidak valid", "deleteOlehOlehModalOpen");
+        
+        // Konfirmasi Nama
+        OlehOleh existing = olehOlehService.getOlehOlehById(authUser.getId(), olehOlehForm.getId());
+        if (existing == null) return handleError(redirectAttributes, "Data tidak ditemukan", "deleteOlehOlehModalOpen");
+        
+        if (!existing.getNamaOlehOleh().equals(olehOlehForm.getConfirmNamaOlehOleh())) {
             redirectAttributes.addFlashAttribute("deleteOlehOlehModalId", olehOlehForm.getId());
-            return "redirect:/";
+            return handleError(redirectAttributes, "Nama konfirmasi tidak sesuai", "deleteOlehOlehModalOpen");
         }
 
-        // Periksa apakah oleh-oleh tersedia
-        OlehOleh existingOlehOleh = olehOlehService.getOlehOlehById(authUser.getId(), olehOlehForm.getId());
-        if (existingOlehOleh == null) {
-            redirectAttributes.addFlashAttribute("error", "Oleh-oleh tidak ditemukan");
-            redirectAttributes.addFlashAttribute("deleteOlehOlehModalOpen", true);
-            redirectAttributes.addFlashAttribute("deleteOlehOlehModalId", olehOlehForm.getId());
-            return "redirect:/";
-        }
-
-        if (!existingOlehOleh.getNamaOlehOleh().equals(olehOlehForm.getConfirmNamaOlehOleh())) {
-            redirectAttributes.addFlashAttribute("error", "Konfirmasi nama oleh-oleh tidak sesuai");
-            redirectAttributes.addFlashAttribute("deleteOlehOlehModalOpen", true);
-            redirectAttributes.addFlashAttribute("deleteOlehOlehModalId", olehOlehForm.getId());
-            return "redirect:/";
-        }
-
-        // Hapus oleh-oleh
-        boolean deleted = olehOlehService.deleteOlehOleh(
-                authUser.getId(),
-                olehOlehForm.getId());
+        boolean deleted = olehOlehService.deleteOlehOleh(authUser.getId(), olehOlehForm.getId());
         if (!deleted) {
-            redirectAttributes.addFlashAttribute("error", "Gagal menghapus oleh-oleh");
-            redirectAttributes.addFlashAttribute("deleteOlehOlehModalOpen", true);
             redirectAttributes.addFlashAttribute("deleteOlehOlehModalId", olehOlehForm.getId());
-            return "redirect:/";
+            return handleError(redirectAttributes, "Gagal menghapus data", "deleteOlehOlehModalOpen");
         }
 
-        // Redirect dengan pesan sukses
         redirectAttributes.addFlashAttribute("success", "Oleh-oleh berhasil dihapus.");
         return "redirect:/";
     }
 
+    // ========================================================================
+    // 4. DETAIL HALAMAN
+    // ========================================================================
     @GetMapping("/{olehOlehId}")
     public String getDetailOlehOleh(@PathVariable UUID olehOlehId, Model model) {
-        // Autentikasi user
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if ((authentication instanceof AnonymousAuthenticationToken)) {
+        if ((authentication instanceof AnonymousAuthenticationToken) || !(authentication.getPrincipal() instanceof User)) {
             return "redirect:/auth/logout";
         }
-        Object principal = authentication.getPrincipal();
-        if (!(principal instanceof User)) {
-            return "redirect:/auth/logout";
-        }
-        User authUser = (User) principal;
+        User authUser = (User) authentication.getPrincipal();
         model.addAttribute("auth", authUser);
 
-        // Ambil oleh-oleh
         OlehOleh olehOleh = olehOlehService.getOlehOlehById(authUser.getId(), olehOlehId);
-        if (olehOleh == null) {
-            return "redirect:/";
-        }
+        if (olehOleh == null) return "redirect:/";
+        
         model.addAttribute("olehOleh", olehOleh);
-
-        // Foto OlehOleh Form
+        
+        // Form untuk edit foto di halaman detail
         FotoOlehOlehForm fotoOlehOlehForm = new FotoOlehOlehForm();
         fotoOlehOlehForm.setId(olehOlehId);
         model.addAttribute("fotoOlehOlehForm", fotoOlehOlehForm);
@@ -324,85 +222,54 @@ public class OlehOlehView {
         return ConstUtil.TEMPLATE_PAGES_OLEH_OLEH_DETAIL;
     }
 
+    // ========================================================================
+    // 5. UPDATE FOTO (DARI HALAMAN DETAIL)
+    // ========================================================================
     @PostMapping("/edit-foto")
     public String postEditFotoOlehOleh(@Valid @ModelAttribute("fotoOlehOlehForm") FotoOlehOlehForm fotoOlehOlehForm,
-            RedirectAttributes redirectAttributes,
-            HttpSession session,
-            Model model) {
+            RedirectAttributes redirectAttributes) {
 
-        // Autentikasi user
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if ((authentication instanceof AnonymousAuthenticationToken)) {
+        if ((authentication instanceof AnonymousAuthenticationToken) || !(authentication.getPrincipal() instanceof User)) {
             return "redirect:/auth/logout";
         }
-        Object principal = authentication.getPrincipal();
-        if (!(principal instanceof User)) {
-            return "redirect:/auth/logout";
-        }
-        User authUser = (User) principal;
 
-        if (fotoOlehOlehForm.isEmpty()) {
-            redirectAttributes.addFlashAttribute("error", "File foto tidak boleh kosong");
-            redirectAttributes.addFlashAttribute("editFotoOlehOlehModalOpen", true);
-            return "redirect:/oleh-oleh/" + fotoOlehOlehForm.getId();
-        }
-
-        // Check if oleh-oleh exists
-        OlehOleh olehOleh = olehOlehService.getOlehOlehById(authUser.getId(), fotoOlehOlehForm.getId());
-        if (olehOleh == null) {
-            redirectAttributes.addFlashAttribute("error", "Oleh-oleh tidak ditemukan");
-            redirectAttributes.addFlashAttribute("editFotoOlehOlehModalOpen", true);
-            return "redirect:/";
-        }
-
-        // Validasi manual file type
-        if (!fotoOlehOlehForm.isValidImage()) {
-            redirectAttributes.addFlashAttribute("error",
-                    "Format file tidak didukung. Gunakan JPEG, JPG, PNG, GIF, atau WebP");
-            redirectAttributes.addFlashAttribute("editFotoOlehOlehModalOpen", true);
-            return "redirect:/oleh-oleh/" + fotoOlehOlehForm.getId();
-        }
-
-        // Validasi file size (max 5MB)
-        if (!fotoOlehOlehForm.isSizeValid()) {
-            redirectAttributes.addFlashAttribute("error",
-                    "Ukuran file terlalu besar. Maksimal 5MB. Ukuran Anda: " + fotoOlehOlehForm.getFileSizeFormatted());
-            redirectAttributes.addFlashAttribute("editFotoOlehOlehModalOpen", true);
-            return "redirect:/oleh-oleh/" + fotoOlehOlehForm.getId();
-        }
+        if (fotoOlehOlehForm.isEmpty()) return handleError(redirectAttributes, "File belum dipilih", "editFotoOlehOlehModalOpen", "/oleh-oleh/" + fotoOlehOlehForm.getId());
+        if (!fotoOlehOlehForm.isValidImage()) return handleError(redirectAttributes, "Format salah. Gunakan JPG/PNG/WEBP", "editFotoOlehOlehModalOpen", "/oleh-oleh/" + fotoOlehOlehForm.getId());
+        if (!fotoOlehOlehForm.isSizeValid()) return handleError(redirectAttributes, "File terlalu besar (Max 5MB)", "editFotoOlehOlehModalOpen", "/oleh-oleh/" + fotoOlehOlehForm.getId());
 
         try {
-            // Simpan file
-            String fileName = fileStorageService.storeFile(fotoOlehOlehForm.getFotoFile(), fotoOlehOlehForm.getId());
-
-            // Update oleh-oleh dengan nama file foto
-            olehOlehService.updateFoto(fotoOlehOlehForm.getId(), fileName);
-
-            redirectAttributes.addFlashAttribute("success", "Foto berhasil diupload");
+            olehOlehService.uploadFoto(fotoOlehOlehForm.getId(), fotoOlehOlehForm);
+            redirectAttributes.addFlashAttribute("success", "Foto berhasil diupdate");
             return "redirect:/oleh-oleh/" + fotoOlehOlehForm.getId();
-        } catch (IOException e) {
-            redirectAttributes.addFlashAttribute("error", "Gagal mengupload foto: " + e.getMessage());
-            redirectAttributes.addFlashAttribute("editFotoOlehOlehModalOpen", true);
-            return "redirect:/oleh-oleh/" + fotoOlehOlehForm.getId();
+        } catch (Exception e) {
+            return handleError(redirectAttributes, "Error: " + e.getMessage(), "editFotoOlehOlehModalOpen", "/oleh-oleh/" + fotoOlehOlehForm.getId());
         }
-
     }
 
+    // ========================================================================
+    // 6. LOAD GAMBAR (Resource Handler)
+    // ========================================================================
     @GetMapping("/foto/{filename:.+}")
     @ResponseBody
     public Resource getFotoByFilename(@PathVariable String filename) {
         try {
             Path file = fileStorageService.loadFile(filename);
             Resource resource = new UrlResource(file.toUri());
-
-            if (resource.exists() || resource.isReadable()) {
-                return resource;
-            } else {
-                return null;
-            }
+            return (resource.exists() || resource.isReadable()) ? resource : null;
         } catch (Exception e) {
             return null;
         }
     }
 
+    // Helper untuk mempersingkat error handling
+    private String handleError(RedirectAttributes ra, String msg, String modalKey) {
+        return handleError(ra, msg, modalKey, "redirect:/");
+    }
+
+    private String handleError(RedirectAttributes ra, String msg, String modalKey, String redirectUrl) {
+        ra.addFlashAttribute("error", msg);
+        if (modalKey != null) ra.addFlashAttribute(modalKey, true);
+        return redirectUrl;
+    }
 }

@@ -1,282 +1,128 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" 
-      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
-      layout:decorate="~{layouts/base}">
+<html layout:decorate="~{layouts/base}" xmlns:th="http://www.thymeleaf.org">
 <head>
     <title>Detail Oleh-Oleh</title>
 </head>
 <body>
 
 <div layout:fragment="content">
-    
-    <!-- Flash Messages -->
-    <div th:if="${success}" class="alert alert-success alert-dismissible fade show" role="alert">
-        <i class="bi bi-check-circle-fill"></i> <span th:text="${success}"></span>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
-    
-    <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert">
-        <i class="bi bi-exclamation-triangle-fill"></i> <span th:text="${error}"></span>
-        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-    </div>
+    <div class="container py-4">
+        <!-- Tombol Kembali -->
+        <a th:href="@{/}" class="btn btn-outline-secondary mb-3">
+            <i class="bi bi-arrow-left"></i> Kembali ke Dashboard
+        </a>
 
-    <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb" class="mb-4">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="/">Home</a></li>
-            <li class="breadcrumb-item active" th:text="${olehOleh.namaOlehOleh}">Detail</li>
-        </ol>
-    </nav>
-
-    <!-- Poin 7: Fitur Tampilan Detail Data -->
-    <div class="row">
-        <!-- Kolom Kiri: Foto -->
-        <div class="col-md-5 mb-4">
-            <div class="card shadow">
-                <div class="card-body text-center">
-                    <!-- Display Foto -->
-                    <div class="position-relative" style="min-height: 400px;">
-                        <img th:if="${olehOleh.fotoPath != null}" 
-                             th:src="@{'/oleh-oleh/foto/' + ${olehOleh.fotoPath}}" 
-                             class="img-fluid rounded shadow-sm mb-3" 
-                             style="max-height: 400px; object-fit: cover; width: 100%;"
-                             th:alt="${olehOleh.namaOlehOleh}">
-                        
-                        <div th:unless="${olehOleh.fotoPath != null}" 
-                             class="bg-light border rounded d-flex align-items-center justify-content-center" 
-                             style="height: 400px;">
-                            <div class="text-center text-muted">
-                                <i class="bi bi-image fs-1"></i>
-                                <p class="mt-3">Belum ada foto</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Poin 4: Fitur Ubah Data Gambar / Upload Foto -->
-                    <button type="button" class="btn btn-primary w-100 mt-3" 
-                            data-bs-toggle="modal" 
-                            data-bs-target="#uploadFotoModal">
-                        <i class="bi bi-camera-fill"></i> 
-                        <span th:text="${olehOleh.fotoPath != null ? 'Ganti Foto' : 'Upload Foto'}">Upload Foto</span>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Rating Card -->
-            <div class="card shadow mt-3" th:if="${olehOleh.rating != null}">
-                <div class="card-body text-center">
-                    <h6 class="text-muted mb-2">Rating</h6>
-                    <h1 class="text-warning mb-0">
-                        <i class="bi bi-star-fill"></i>
-                        <span th:text="${olehOleh.rating} + '/5'">0/5</span>
-                    </h1>
-                    <div class="mt-2">
-                        <span th:each="i : ${#numbers.sequence(1, 5)}">
-                            <i th:class="${i <= olehOleh.rating ? 'bi bi-star-fill text-warning' : 'bi bi-star text-muted'}"></i>
-                        </span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Kolom Kanan: Detail Info -->
-        <div class="col-md-7">
-            <div class="card shadow">
-                <div class="card-header bg-primary text-white">
-                    <h4 class="mb-0">
-                        <i class="bi bi-gift-fill"></i> 
-                        <span th:text="${olehOleh.namaOlehOleh}">Nama Oleh-Oleh</span>
-                    </h4>
-                </div>
-                <div class="card-body">
+        <div class="row">
+            <!-- KOLOM KIRI: FOTO -->
+            <div class="col-md-5">
+                <div class="card shadow-sm">
+                    <!-- LOGIC MENAMPILKAN GAMBAR -->
+                    <!-- Jika fotoPath ada, ambil dari endpoint /oleh-oleh/foto/... -->
+                    <img th:if="${olehOleh.fotoPath != null}" 
+                         th:src="@{/oleh-oleh/foto/{filename}(filename=${olehOleh.fotoPath})}" 
+                         class="card-img-top img-fluid" 
+                         style="object-fit: cover; height: 300px;" 
+                         alt="Foto Oleh-Oleh">
                     
-                    <!-- Badge Rekomendasi -->
-                    <div class="mb-3" th:if="${olehOleh.isRekomendasi}">
-                        <span class="badge bg-warning text-dark fs-6">
-                            <i class="bi bi-star-fill"></i> Direkomendasikan
-                        </span>
+                    <!-- Jika fotoPath kosong, tampilkan placeholder -->
+                    <div th:unless="${olehOleh.fotoPath != null}" 
+                         class="bg-light d-flex align-items-center justify-content-center" 
+                         style="height: 300px;">
+                        <span class="text-muted"><i class="bi bi-image fs-1"></i><br>Tidak ada foto</span>
                     </div>
 
-                    <!-- Deskripsi -->
-                    <div class="mb-4">
-                        <h6 class="text-muted mb-2">
-                            <i class="bi bi-file-text"></i> Deskripsi
-                        </h6>
-                        <p class="lead" th:text="${olehOleh.deskripsi}">Deskripsi oleh-oleh</p>
-                    </div>
-
-                    <hr>
-
-                    <!-- Detail Info Grid -->
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <h6 class="text-muted">
-                                <i class="bi bi-tag-fill"></i> Kategori
-                            </h6>
-                            <p>
-                                <span class="badge bg-info text-dark fs-6" th:text="${olehOleh.kategori}">Kategori</span>
-                            </p>
-                        </div>
-                        <div class="col-md-6">
-                            <h6 class="text-muted">
-                                <i class="bi bi-geo-alt-fill"></i> Asal Daerah
-                            </h6>
-                            <p>
-                                <strong th:text="${olehOleh.asalDaerah}">Daerah</strong><br>
-                                <small class="text-muted" th:text="${olehOleh.provinsi}">Provinsi</small>
-                            </p>
-                        </div>
-                    </div>
-
-                    <div class="row mb-3" th:if="${olehOleh.hargaPerkiraan != null}">
-                        <div class="col-md-6">
-                            <h6 class="text-muted">
-                                <i class="bi bi-cash-stack"></i> Harga Perkiraan
-                            </h6>
-                            <p class="fs-5 text-success fw-bold">
-                                Rp <span th:text="${#numbers.formatDecimal(olehOleh.hargaPerkiraan, 0, 'COMMA', 0, 'POINT')}">0</span>
-                            </p>
-                        </div>
-                        <div class="col-md-6" th:if="${olehOleh.tempatBeli != null}">
-                            <h6 class="text-muted">
-                                <i class="bi bi-shop"></i> Tempat Beli
-                            </h6>
-                            <p th:text="${olehOleh.tempatBeli}">Tempat</p>
-                        </div>
-                    </div>
-
-                    <hr>
-
-                    <!-- Timestamps -->
-                    <div class="row text-muted small">
-                        <div class="col-md-6">
-                            <i class="bi bi-calendar-plus"></i> 
-                            Dibuat: <span th:text="${#temporals.format(olehOleh.createdAt, 'dd MMM yyyy HH:mm')}">-</span>
-                        </div>
-                        <div class="col-md-6">
-                            <i class="bi bi-calendar-check"></i> 
-                            Update: <span th:text="${#temporals.format(olehOleh.updatedAt, 'dd MMM yyyy HH:mm')}">-</span>
-                        </div>
-                    </div>
-
-                    <hr>
-
-                    <!-- Action Buttons -->
-                    <div class="d-flex gap-2 mt-4">
-                        <a href="/" class="btn btn-secondary">
-                            <i class="bi bi-arrow-left"></i> Kembali
-                        </a>
-                        <button type="button" class="btn btn-warning" 
-                                th:onclick="'openEditModal(\'' + ${olehOleh.id} + '\')'">
-                            <i class="bi bi-pencil"></i> Edit Data
+                    <div class="card-body text-center">
+                        <!-- Tombol Ganti Foto (Memicu Modal) -->
+                        <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#editFotoModal">
+                            <i class="bi bi-camera"></i> Ganti Foto
                         </button>
-                        <button type="button" class="btn btn-danger" 
-                                th:onclick="'openDeleteModal(\'' + ${olehOleh.id} + '\', \'' + ${olehOleh.namaOlehOleh} + '\')'">
-                            <i class="bi bi-trash"></i> Hapus
-                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KOLOM KANAN: DETAIL TEKS -->
+            <div class="col-md-7">
+                <div class="card shadow-sm h-100">
+                    <div class="card-body">
+                        <h2 class="card-title text-primary" th:text="${olehOleh.namaOlehOleh}">Nama Oleh-Oleh</h2>
+                        
+                        <!-- Badges -->
+                        <div class="mb-3">
+                            <span class="badge bg-info" th:text="${olehOleh.kategori}">Kategori</span>
+                            <span class="badge bg-success" th:if="${olehOleh.isRekomendasi}">Rekomendasi</span>
+                            <span class="badge bg-warning text-dark">
+                                <i class="bi bi-star-fill"></i> <span th:text="${olehOleh.rating} + '/5'"></span>
+                            </span>
+                        </div>
+
+                        <hr>
+
+                        <div class="row mb-2">
+                            <div class="col-sm-4 fw-bold">Asal Daerah</div>
+                            <div class="col-sm-8" th:text="${olehOleh.asalDaerah}"></div>
+                        </div>
+
+                        <div class="row mb-2">
+                            <div class="col-sm-4 fw-bold">Provinsi</div>
+                            <div class="col-sm-8" th:text="${olehOleh.provinsi}"></div>
+                        </div>
+
+                        <div class="row mb-2">
+                            <div class="col-sm-4 fw-bold">Harga Perkiraan</div>
+                            <div class="col-sm-8" th:text="'Rp ' + ${#numbers.formatDecimal(olehOleh.hargaPerkiraan, 0, 'COMMA', 0, 'POINT')}"></div>
+                        </div>
+
+                        <div class="row mb-2">
+                            <div class="col-sm-4 fw-bold">Tempat Beli</div>
+                            <div class="col-sm-8" th:text="${olehOleh.tempatBeli ?: '-'}"></div>
+                        </div>
+
+                        <div class="mt-4">
+                            <h5>Deskripsi</h5>
+                            <p class="text-muted" th:text="${olehOleh.deskripsi}"></p>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-</div>
-
-<!-- Modal Upload Foto -->
-<div layout:fragment="content">
-    <div class="modal fade" 
-         id="uploadFotoModal" 
-         tabindex="-1"
-         th:classappend="${editFotoOlehOlehModalOpen ? 'show' : ''}">
+    <!-- ========================================== -->
+    <!-- MODAL EDIT FOTO -->
+    <!-- ========================================== -->
+    <div class="modal fade" id="editFotoModal" tabindex="-1" 
+         th:classappend="${editFotoOlehOlehModalOpen} ? 'show d-block'" 
+         th:style="${editFotoOlehOlehModalOpen} ? 'background: rgba(0,0,0,0.5)' : ''">
+        
         <div class="modal-dialog">
             <div class="modal-content">
-                <form th:action="@{/oleh-oleh/edit-foto}" 
-                      method="post" 
-                      enctype="multipart/form-data"
-                      th:object="${fotoOlehOlehForm}">
-                    
-                    <input type="hidden" th:field="*{id}">
-                    
-                    <div class="modal-header bg-primary text-white">
-                        <h5 class="modal-title">
-                            <i class="bi bi-camera-fill"></i> Upload Foto Oleh-Oleh
-                        </h5>
-                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                    </div>
-                    
+                <div class="modal-header">
+                    <h5 class="modal-title">Ganti Foto Oleh-Oleh</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" 
+                            th:onclick="${editFotoOlehOlehModalOpen} ? 'window.location.href=\'/oleh-oleh/' + ${olehOleh.id} + '\'' : ''"></button>
+                </div>
+                
+                <form th:action="@{/oleh-oleh/edit-foto}" method="post" enctype="multipart/form-data" th:object="${fotoOlehOlehForm}">
                     <div class="modal-body">
+                        <!-- ID Hidden -->
+                        <input type="hidden" th:field="*{id}">
+
                         <div class="mb-3">
-                            <label class="form-label">Pilih Foto *</label>
-                            <input type="file" 
-                                   class="form-control" 
-                                   th:field="*{fotoFile}"
-                                   accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
-                                   required>
-                            <small class="text-muted">
-                                Format: JPEG, JPG, PNG, GIF, WebP (Max 5MB)
-                            </small>
-                        </div>
-
-                        <!-- Preview Image -->
-                        <div class="mb-3" id="imagePreview" style="display: none;">
-                            <label class="form-label">Preview:</label>
-                            <img id="previewImg" class="img-fluid rounded border" style="max-height: 300px;">
-                        </div>
-
-                        <div class="alert alert-info">
-                            <i class="bi bi-info-circle"></i>
-                            <small>
-                                Foto akan menggantikan foto yang sudah ada. Pastikan foto yang diupload berkualitas baik.
-                            </small>
+                            <label class="form-label">Pilih Foto Baru</label>
+                            <input type="file" th:field="*{fotoFile}" class="form-control" accept="image/*" required>
+                            <small class="text-muted">Max 5MB (JPG, PNG, WebP)</small>
                         </div>
                     </div>
-                    
                     <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                        <button type="submit" class="btn btn-primary">
-                            <i class="bi bi-upload"></i> Upload
-                        </button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"
+                                th:onclick="${editFotoOlehOlehModalOpen} ? 'window.location.href=\'/oleh-oleh/' + ${olehOleh.id} + '\'' : ''">Batal</button>
+                        <button type="submit" class="btn btn-primary">Upload</button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Scripts -->
-<div layout:fragment="scripts">
-    <script th:inline="javascript">
-        /*<![CDATA[*/
-        // Auto show upload modal if error
-        document.addEventListener('DOMContentLoaded', function() {
-            var modalOpen = /*[[${editFotoOlehOlehModalOpen}]]*/ false;
-            if(modalOpen) {
-                new bootstrap.Modal(document.getElementById('uploadFotoModal')).show();
-            }
-
-            // Image preview
-            const fileInput = document.querySelector('input[type="file"]');
-            const previewContainer = document.getElementById('imagePreview');
-            const previewImg = document.getElementById('previewImg');
-
-            if (fileInput) {
-                fileInput.addEventListener('change', function(e) {
-                    const file = e.target.files[0];
-                    if (file) {
-                        const reader = new FileReader();
-                        reader.onload = function(e) {
-                            previewImg.src = e.target.result;
-                            previewContainer.style.display = 'block';
-                        };
-                        reader.readAsDataURL(file);
-                    } else {
-                        previewContainer.style.display = 'none';
-                    }
-                });
-            }
-        });
-        /*]]>*/
-    </script>
 </div>
 
 </body>

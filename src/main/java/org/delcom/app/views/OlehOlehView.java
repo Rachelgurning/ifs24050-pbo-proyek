@@ -163,11 +163,13 @@ public class OlehOlehView {
         return "redirect:/";
     }
 
-    // ========================================================================
-    // 3. HAPUS OLEH-OLEH
+// ========================================================================
+    // 3. HAPUS OLEH-OLEH (FIXED)
     // ========================================================================
     @PostMapping("/delete")
-    public String postDeleteOlehOleh(@Valid @ModelAttribute("olehOlehForm") OlehOlehForm olehOlehForm,
+    public String postDeleteOlehOleh(
+            // HAPUS @Valid DARI SINI AGAR TIDAK MENGECEK FIELD LAIN
+            @ModelAttribute("olehOlehForm") OlehOlehForm olehOlehForm,
             RedirectAttributes redirectAttributes) {
 
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
@@ -176,17 +178,29 @@ public class OlehOlehView {
         }
         User authUser = (User) authentication.getPrincipal();
 
-        if (olehOlehForm.getId() == null) return handleError(redirectAttributes, "ID tidak valid", "deleteOlehOlehModalOpen");
+        // Validasi Manual: Cukup cek ID dan Nama Konfirmasi saja
+        if (olehOlehForm.getId() == null) {
+            return handleError(redirectAttributes, "ID tidak valid", "deleteOlehOlehModalOpen");
+        }
         
-        // Konfirmasi Nama
+        if (olehOlehForm.getConfirmNamaOlehOleh() == null || olehOlehForm.getConfirmNamaOlehOleh().isBlank()) {
+            redirectAttributes.addFlashAttribute("deleteOlehOlehModalId", olehOlehForm.getId());
+            return handleError(redirectAttributes, "Nama konfirmasi wajib diisi", "deleteOlehOlehModalOpen");
+        }
+
+        // Cek Data di Database
         OlehOleh existing = olehOlehService.getOlehOlehById(authUser.getId(), olehOlehForm.getId());
-        if (existing == null) return handleError(redirectAttributes, "Data tidak ditemukan", "deleteOlehOlehModalOpen");
+        if (existing == null) {
+            return handleError(redirectAttributes, "Data tidak ditemukan", "deleteOlehOlehModalOpen");
+        }
         
+        // Cek Kesesuaian Nama
         if (!existing.getNamaOlehOleh().equals(olehOlehForm.getConfirmNamaOlehOleh())) {
             redirectAttributes.addFlashAttribute("deleteOlehOlehModalId", olehOlehForm.getId());
             return handleError(redirectAttributes, "Nama konfirmasi tidak sesuai", "deleteOlehOlehModalOpen");
         }
 
+        // Proses Hapus
         boolean deleted = olehOlehService.deleteOlehOleh(authUser.getId(), olehOlehForm.getId());
         if (!deleted) {
             redirectAttributes.addFlashAttribute("deleteOlehOlehModalId", olehOlehForm.getId());
